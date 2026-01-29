@@ -18,7 +18,7 @@ async function startBot() {
     const client = makeWASocket({
         version,
         logger: pino({ level: 'silent' }),
-        printQRInTerminal: false, // سنستخدم كود الربط بدلاً من QR
+        printQRInTerminal: false, 
         auth: {
             creds: state.creds,
             keys: makeCacheableSignalKeyStore(state.creds, pino({ level: 'silent' })),
@@ -26,13 +26,19 @@ async function startBot() {
         browser: ["Ubuntu", "Chrome", "20.0.04"]
     });
 
-    // طلب كود الربط تلقائياً
+    // طلب كود الربط للرقم الجديد
     if (!client.authState.creds.registered) {
         let phoneNumber = config.pairingNumber.replace(/[^0-9]/g, '');
+        console.log(chalk.yellow(`\n[!] جاري طلب كود الربط للرقم الجديد: ${phoneNumber}...`));
+        
         setTimeout(async () => {
-            let code = await client.requestPairingCode(phoneNumber);
-            code = code?.match(/.{1,4}/g)?.join("-") || code;
-            console.log(chalk.black(chalk.bgGreen(`\n[+] كود الربط الخاص بك: ${code}\n`)));
+            try {
+                let code = await client.requestPairingCode(phoneNumber);
+                code = code?.match(/.{1,4}/g)?.join("-") || code;
+                console.log(chalk.black(chalk.bgGreen(`\n[+] كود الربط الخاص بك: ${code}\n`)));
+            } catch (err) {
+                console.log(chalk.red("\n[!] فشل طلب الكود. تأكد من استقرار الإنترنت وحذف مجلد session."));
+            }
         }, 3000);
     }
 
@@ -44,7 +50,7 @@ async function startBot() {
             let reason = new Boom(lastDisconnect?.error)?.output.statusCode;
             if (reason !== DisconnectReason.loggedOut) startBot();
         } else if (connection === 'open') {
-            console.log(chalk.green('\n[+] تم الاتصال! هانكوك جاهزة للخدمة يا نيغن. ✅\n'));
+            console.log(chalk.green('\n[+] تم الاتصال بنجاح! هانكوك تحت أمرك يا نيغن. ✅\n'));
         }
     });
 
@@ -52,11 +58,11 @@ async function startBot() {
         try {
             const mek = chatUpdate.messages[0];
             if (!mek.message) return;
-            // دالة بسيطة لتنسيق الرسالة
             const m = {
                 id: mek.key.id,
                 chat: mek.key.remoteJid,
                 fromMe: mek.key.fromMe,
+                pushName: mek.pushName,
                 sender: (mek.key.participant || mek.key.remoteJid).split(':')[0] + "@s.whatsapp.net",
                 body: mek.message.conversation || mek.message.extendedTextMessage?.text || "",
                 quoted: mek,
